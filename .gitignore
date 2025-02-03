@@ -1,3 +1,4 @@
 old/
 results/
 esp32 flash/
+__pycache__/
