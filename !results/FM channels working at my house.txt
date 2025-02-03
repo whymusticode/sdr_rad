@@ -1,0 +1,22 @@
+88.5000  massive success (we already knew that)
+90.9000  mild success 
+91.7000 biggest success WOW
+94.3000 maybe a success? unique ambiguity function
+94.5000 good cancellation, no targets seen
+97.3000 great cancellation, success
+
+98.5000 great cancellation, did not see targets 
+99.5000 good cancellation, did not see targets
+100.7000 great cancellation, no targets of oportunity 
+101.3000 great cancellation, no targets available
+
+102.5000 good cancellation, unable to see a known target
+103.3000 good cancellation, unable to see known target
+104.1000 great cancellation, and success I think ( fell apart later)
+104.5000 good cancelation, nothing seen 
+105.7000 great cancelation, failed to find known target
+107.9000 good cancellation, strange ambiguity function, success 
+
+so far, best choices are:
+91.7
+97.3
