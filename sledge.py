@@ -1,66 +1,97 @@
 
-# kernprof -l -v sledge.py
-# python3 sledge.py
 
-# import torch
-import numpy as np
 
-# from numba import jit
-
+import tensorflow as tf
 from scipy.constants import c
 
-import math
-
-def nearest_power_of_2(x):
-    if x <= 0:
-        raise ValueError("Input must be a positive integer")
-    return 1 << (x - 1).bit_length()
-
-# @jit(nopython=True, parallel=True)
 def sledge(tx, rx, p):
-    """
-    Performs 2-D Cross Correlation Function in range and Doppler for
-    arbitrary transmit waveform. Caution, this has Doppler ambiguities.
+    n0 = len(tx)
+    dpp = c / n0 * p['fs'] / p['fc']
+    nD = round(2 * p['vMax'] / dpp)
+    nB = n0 // nD
+    n = nD * nB
+    dpp = c / n * p['fs'] / p['fc']
+    rpp = c / p['fs']
+    range_vals = tf.range(rpp, p['rMax'] + rpp, rpp)
+    nR = len(range_vals)
+    velocity = tf.signal.fftshift(tf.signal.fftfreq(nD, 1/nD)) * -dpp
+    nBR = nB + nR
 
-    Inputs:
-        tx - IQ signal transmitted (numpy array)
-        rx - IQ signal received (numpy array), length(rx) == length(tx)
-        p - parameters including:
-            p['fs']: sample frequency (Hz)
-            p['fc']: center frequency (Hz)
-            p['rMax']: maximum range to create image (m)
-            p['vMax']: max velocity +- to create image (m/s)
+    part1 = tf.reshape(rx[:n], [nD, nB])
+    part2 = tf.concat([part1[1:, :nR], tf.zeros([1, nR], dtype=rx.dtype)], axis=0)
+    rxBatch = tf.concat([part1, part2], axis=1)
 
-    Outputs:
-        range_vals - (m)
-        velocity - (m/s)
-        image - complex range-Doppler image, [velocity x range]
-    """
-    # Constants
-    n0 = len(tx)  # length of inputs
-    dpp = c / n0 * p['fs'] / p['fc']  # Doppler per pixel approximation
-    nD = round(2 * p['vMax'] / dpp)  # number of Doppler bins
-    # nD = nearest_power_of_2(nD)
-    nB = n0 // nD  # batch length
-    n = nD * nB  # new integration length
-    dpp = c / n * p['fs'] / p['fc']  # Doppler per pixel exact
-    rpp = c / p['fs']  # range per pixel
-    range_vals = np.arange(rpp, p['rMax'] + rpp, rpp)  # range bins
-    nR = len(range_vals)  # number of range bins
-    velocity = np.fft.fftshift(np.fft.fftfreq(nD, d=1/nD)) * -dpp
-    nBR = nB + nR  # length of convolution
-    
-
-    part1 = rx[:n].reshape(nD, nB)
-    part2 = np.concatenate([part1[1:, :nR], np.zeros((1, nR), dtype=rx.dtype)], axis=0)
-    rxBatch = np.concatenate([part1, part2], axis=1)
-
-    TX = np.conj(np.fft.fft(tx[:n].reshape(nD, nB), n=nBR, axis=1))
-    RX = np.fft.fft(rxBatch, axis=1)
-    corFun1d = np.fft.ifft(TX * RX, axis=1)
-    image = np.fft.fftshift(np.fft.fft(corFun1d[:, :nR], axis=0), axes=0)
+    TX = tf.math.conj(tf.signal.fft(tf.reshape(tx[:n], [nD, nB]), nBR))
+    RX = tf.signal.fft(rxBatch)
+    corFun1d = tf.signal.ifft(TX * RX)
+    image = tf.signal.fftshift(tf.signal.fft(corFun1d[:, :nR]), axes=0)
 
     return range_vals, velocity, image
+
+
+
+# # kernprof -l -v sledge.py
+# # python3 sledge.py
+
+# # import torch
+# import numpy as np
+
+# # from numba import jit
+
+# from scipy.constants import c
+
+# import math
+
+# def nearest_power_of_2(x):
+#     if x <= 0:
+#         raise ValueError("Input must be a positive integer")
+#     return 1 << (x - 1).bit_length()
+
+# # @jit(nopython=True, parallel=True)
+# def sledge(tx, rx, p):
+#     """
+#     Performs 2-D Cross Correlation Function in range and Doppler for
+#     arbitrary transmit waveform. Caution, this has Doppler ambiguities.
+
+#     Inputs:
+#         tx - IQ signal transmitted (numpy array)
+#         rx - IQ signal received (numpy array), length(rx) == length(tx)
+#         p - parameters including:
+#             p['fs']: sample frequency (Hz)
+#             p['fc']: center frequency (Hz)
+#             p['rMax']: maximum range to create image (m)
+#             p['vMax']: max velocity +- to create image (m/s)
+
+#     Outputs:
+#         range_vals - (m)
+#         velocity - (m/s)
+#         image - complex range-Doppler image, [velocity x range]
+#     """
+#     # Constants
+#     n0 = len(tx)  # length of inputs
+#     dpp = c / n0 * p['fs'] / p['fc']  # Doppler per pixel approximation
+#     nD = round(2 * p['vMax'] / dpp)  # number of Doppler bins
+#     # nD = nearest_power_of_2(nD)
+#     nB = n0 // nD  # batch length
+#     n = nD * nB  # new integration length
+#     dpp = c / n * p['fs'] / p['fc']  # Doppler per pixel exact
+#     rpp = c / p['fs']  # range per pixel
+#     range_vals = np.arange(rpp, p['rMax'] + rpp, rpp)  # range bins
+#     nR = len(range_vals)  # number of range bins
+#     velocity = np.fft.fftshift(np.fft.fftfreq(nD, d=1/nD)) * -dpp
+#     nBR = nB + nR  # length of convolution
+    
+
+#     part1 = rx[:n].reshape(nD, nB)
+#     part2 = np.concatenate([part1[1:, :nR], np.zeros((1, nR), dtype=rx.dtype)], axis=0)
+#     rxBatch = np.concatenate([part1, part2], axis=1)
+
+#     TX = np.conj(np.fft.fft(tx[:n].reshape(nD, nB), n=nBR, axis=1))
+#     RX = np.fft.fft(rxBatch, axis=1)
+#     corFun1d = np.fft.ifft(TX * RX, axis=1)
+#     image = np.fft.fftshift(np.fft.fft(corFun1d[:, :nR], axis=0), axes=0)
+
+#     return range_vals, velocity, image
 
 # # @profile
 # def sledge(tx, rx, p):
