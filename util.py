@@ -4,12 +4,21 @@ from scipy.fft import fft, ifft
 from scipy.sparse.linalg import lsqr
 import time
 import plotly.graph_objects as go
-
-# from multiprocessing import Process, Queue
-from gnuradio import gr, soapy, blocks
-import numpy as np
-import time
 from numpy.lib.stride_tricks import as_strided
+
+
+def convMat(x, N):
+    L = len(x) - N + 1
+    strided = as_strided(x, shape=(L, N), 
+                        strides=(x.strides[0], x.strides[0]),
+                        writeable=False)
+    return strided
+
+
+# # from multiprocessing import Process, Queue
+# from gnuradio import gr, soapy, blocks
+# import numpy as np
+# import time
 
 
 def quickPlot(thing):
@@ -19,56 +28,6 @@ def quickPlot(thing):
     fig.show()
 
 
-def sdr_process_pluto(queue, frequency, sample_rate, uri=''):
-    tb = gr.top_block()
-    sdr = soapy.source('driver=plutosdr', "fc32", 1, uri, '', [''], [''])
-    
-    # Configure SDR
-    sdr.set_sample_rate(0, sample_rate)
-    sdr.set_frequency(0, frequency)
-    sdr.set_gain(0, 20.0)
-    
-    # Create sink to capture data
-    sink = blocks.vector_sink_c()
-    tb.connect(sdr, sink)
-    
-    # Start flowgraph
-    tb.start()
-    
-    while True:
-        time.sleep(0.1)  # Collect for 100ms
-        data = sink.data()
-        sink.reset()
-        if len(data) > 0:
-            queue.put(data[:1024])  # Send 1024 samples
-
-def sdr_process_RTL(queue, frequency, sample_rate, device_index=0):
-    tb = gr.top_block()
-    
-    # Specify device by index
-    dev_args = f'driver=rtlsdr,rtl={device_index}'
-    
-    sdr = soapy.source(dev_args, "fc32", 1, '',
-                       'bufflen=16384', [''], [''])
-    
-    # Configure SDR
-    sdr.set_sample_rate(0, sample_rate)
-    sdr.set_frequency(0, frequency)
-    sdr.set_gain(0, 'TUNER', 20.0)
-    
-    # Create sink to capture data
-    sink = blocks.vector_sink_c()
-    tb.connect(sdr, sink)
-    
-    # Start flowgraph
-    tb.start()
-    
-    while True:
-        time.sleep(0.1)
-        data = sink.data()
-        sink.reset()
-        if len(data) > 0:
-            queue.put(data[:1024])
 
 def fftConv(x, taps, flag='valid'):
     N1 = len(x) - 1
@@ -94,12 +53,6 @@ def db(x):
 
 
 
-def convMat(x, N):
-    L = len(x) - N + 1
-    strided = as_strided(x, shape=(L, N), 
-                        strides=(x.strides[0], x.strides[0]),
-                        writeable=False)
-    return strided
 
 
 def ax(x, tx, Ntaps, opt):
@@ -122,6 +75,58 @@ def randn_iq(sz):
 def db_atten(rxclean,rx): 
     return 10*np.log10(np.real(rxclean.conj().T@rxclean)/np.real(rx.conj().T@rx))
 
+
+
+# def sdr_process_pluto(queue, frequency, sample_rate, uri=''):
+#     tb = gr.top_block()
+#     sdr = soapy.source('driver=plutosdr', "fc32", 1, uri, '', [''], [''])
+    
+#     # Configure SDR
+#     sdr.set_sample_rate(0, sample_rate)
+#     sdr.set_frequency(0, frequency)
+#     sdr.set_gain(0, 20.0)
+    
+#     # Create sink to capture data
+#     sink = blocks.vector_sink_c()
+#     tb.connect(sdr, sink)
+    
+#     # Start flowgraph
+#     tb.start()
+    
+#     while True:
+#         time.sleep(0.1)  # Collect for 100ms
+#         data = sink.data()
+#         sink.reset()
+#         if len(data) > 0:
+#             queue.put(data[:1024])  # Send 1024 samples
+
+# def sdr_process_RTL(queue, frequency, sample_rate, device_index=0):
+#     tb = gr.top_block()
+    
+#     # Specify device by index
+#     dev_args = f'driver=rtlsdr,rtl={device_index}'
+    
+#     sdr = soapy.source(dev_args, "fc32", 1, '',
+#                        'bufflen=16384', [''], [''])
+    
+#     # Configure SDR
+#     sdr.set_sample_rate(0, sample_rate)
+#     sdr.set_frequency(0, frequency)
+#     sdr.set_gain(0, 'TUNER', 20.0)
+    
+#     # Create sink to capture data
+#     sink = blocks.vector_sink_c()
+#     tb.connect(sdr, sink)
+    
+#     # Start flowgraph
+#     tb.start()
+    
+#     while True:
+#         time.sleep(0.1)
+#         data = sink.data()
+#         sink.reset()
+#         if len(data) > 0:
+#             queue.put(data[:1024])
 
 
 # N = 100000
